@@ -1,0 +1,32 @@
+# Detector settings
+# a description for each detector
+detectors:
+
+  - n_channels: 1280
+    theta_min: 10
+    theta_max: 45
+    min_intensity: 0
+    beta: 43
+    sigma: 0.18
+    n_iter: 32
+
+# Database
+# list of databases to load
+database: 
+  - 'Database16_42/'
+  - 'Standards/'
+  #- '/home/shared/XRD_Databases/Database16_42/'
+  #- '/home/shared/XRD_Databases/Standards/'
+
+# Data
+# data locations, parameters and preprocessing
+data:
+  parameters: '/home/zdenek/Projects/tmp/ScansioneAlluminaZ4000/Scanning_Parameters.txt'
+  path_dat: '/home/zdenek/Projects/tmp/ScansioneAlluminaZ4000/Acquisition0003/'
+
+#Background removal
+background:
+  convolve_window: 13
+  snip_window: 27
+  offset_window: 320
+
