@@ -8,6 +8,7 @@ detectors:
     min_intensity: 0
     beta: 43
     sigma: 0.18
+    merge: 0.18
     n_iter: 32
 
 # Database
