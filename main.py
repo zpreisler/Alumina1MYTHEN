@@ -13,6 +13,8 @@ from matplotlib.figure import Figure
 from XRDutils import ContainerXRD, PhaseMap, opt_from_theta, PhaseList
 from numpy import newaxis, ones, arange, asarray, sqrt, linspace
 
+import yaml
+
 def set_opt(n, m, init_opt):
     nn = n + 3
     opt = ones(nn * m,dtype='float32')
@@ -51,9 +53,15 @@ class MainWindow(QtWidgets.QMainWindow):
         openAction.setStatusTip('Open document')
         openAction.triggered.connect(self.openCall)
 
+        saveAction = QAction(QIcon('save.png'), '&Save', self)
+        saveAction.setShortcut('Ctrl+S')
+        saveAction.setStatusTip('Save calibration')
+        saveAction.triggered.connect(self.saveCall)
+
         menuBar = self.menuBar()
         fileMenu = menuBar.addMenu('&File')
         fileMenu.addAction(openAction)
+        fileMenu.addAction(saveAction)
 
         self.file_label = QLabel()
         self.d1_label = QLabel()
@@ -149,6 +157,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(widget)
 
         self.show()
+
+    def saveCall(self):
+        if hasattr(self,'filename'):
+            print(self.filename)
+            dict_file = [{'beta' : round(float(self.pm.beta[0][0]), 4)},
+                         {'calibration' : 
+                             {'theta_min' : round(float(self.pm.min_theta[0][0]), 4), 'theta_max' : round(float(self.pm.max_theta[0][0]), 4)}}] 
+
+            with open(self.filename[:self.filename.rfind('/') + 1] + 'calibration.yaml', 'w') as file:
+                calibration = yaml.dump(dict_file, file)
 
     def openCall(self):
         """
