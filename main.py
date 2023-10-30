@@ -11,37 +11,29 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationTool
 from matplotlib.figure import Figure
 
 from XRDutils import ContainerXRD, PhaseMap, opt_from_theta, PhaseList
-from numpy import newaxis,ones,arange,asarray,sqrt
+from numpy import newaxis, ones, arange, asarray, sqrt, linspace
 
-def f(x,a,b):
-    return a * x + b
-
-def fopt(n,m,opt_a,opt_s):
+def set_opt(n, m, init_opt):
     nn = n + 3
-    opt = ones(nn*m,dtype='float32')
+    opt = ones(nn * m,dtype='float32')
 
-    opt[0::nn] = f(arange(m),*opt_a)
-    opt[1::nn] = f(arange(m),*opt_s)
-    opt[2::nn] = 43
-    
+    opt[0::nn] = init_opt[0]
+    opt[1::nn] = init_opt[1]
+    opt[2::nn] = init_opt[2]
+
     return opt
 
-opt_a0 = [0, -1166.5282]
-opt_s0 = [0, 2435.3293]
+def mesh_opt():
 
-opt_a0 = [0, -1104.0]
-opt_s0 = [0, 2275.0]
+    theta_min, theta_max, betas = linspace(10,25,50),linspace(35,55,50),linspace(30,60,40)
 
-class SContainerXRD(ContainerXRD):
+    opt = []
+    for t0 in theta_min:
+        for tm in theta_max:
+            for b in betas:
+                opt += [opt_from_theta(t0,tm,b)]
 
-    def read_single_data_repeat(self,filename):
-        
-        self.data.opt = [opt_from_theta(detector['theta_min'],detector['theta_max'],detector['beta']) for detector in self.config['detectors']]
-        self.data.n_channels = [detector['n_channels'] for detector in self.config['detectors']]
-        
-        self.data.data = self.data.__read_single_dat__(filename)[newaxis,newaxis,:].repeat(200,axis=0)
-
-        return self
+    return asarray(opt)
 
 class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=300):
@@ -53,9 +45,6 @@ class MplCanvas(FigureCanvasQTAgg):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
-
-        self.container = SContainerXRD('config.yaml')
-        self.container.read_database()
 
         openAction = QAction(QIcon('open.png'), '&Open', self)
         openAction.setShortcut('Ctrl+O')
@@ -171,28 +160,57 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.file_label.setText(self.filename)
 
-        self.container.read_single_data_repeat(self.filename)
+        self.container = ContainerXRD('config.yaml')
+
+        self.container.read_database()
+
+        self.container.data.data = self.container.data.__read_single_dat__(self.filename)[newaxis,newaxis,:]
+        self.container.data.n_channels = [1280]
+        self.container.data.opt = [[0,-2000,43]]
+
         self.container.remove_background()
 
         #alumina = PhaseList([self.container.database['Aluminium oxide'][0]])
         alumina = PhaseList([self.container.database['SRM1976a'][0]])
+
+        opt = mesh_opt()
+
+        self.container.data.data = self.container.data.data.repeat(len(opt),axis=0)
+        self.container.data.no_background = self.container.data.no_background.repeat(len(opt),axis=0)
+        self.container.data.normalized = self.container.data.normalized.repeat(len(opt),axis=0)
+
         self.pm = PhaseMap(self.container,alumina)
 
-        self.pm.detectors[0].opt = fopt(self.pm.detectors[0].n,200,opt_a0,opt_s0)
+        self.pm.detectors[0].opt = set_opt(self.pm.detectors[0].n,self.pm.detectors[0].n_pixels,opt.T)
 
-        self.pm.set_n_iter(64)
-        #self.pm.mp_a_s_gamma_wb()
-        #self.pm.mp_synthetic_spectra_wb()
-        self.pm.mp_a_s_gamma()
         self.pm.mp_synthetic_spectra()
         self.pm.mp_cosine_similarity()
 
-        cosine_similarity = asarray(self.pm.cosine_similarity).sum(axis=0)
-        x = cosine_similarity.argmax()
+        print(self.pm.cosine_similarity[0].max(),self.pm.cosine_similarity[0].argmax())
+        idx = self.pm.cosine_similarity[0].argmax()
 
-        #self.pm.mp_gamma_sigma_wb()
-        #self.pm.mp_synthetic_spectra_wb()
+        """
+        Second pass
+        """
+        opt = self.pm.opt[0][idx]
+
+        self.container = ContainerXRD('config.yaml')
+
+        self.container.data.data = self.container.data.__read_single_dat__(self.filename)[newaxis,newaxis,:]
+        self.container.data.n_channels = [1280]
+        self.container.data.opt = [[0,-2000,43]]
+
+        self.container.remove_background()
+
+
+        self.pm = PhaseMap(self.container,alumina)
+        self.pm.opt[0][0] = opt
+
+        self.pm.set_n_iter(64)
+        self.pm.a_s_n_beta_gamma()
+
         self.pm.mp_gamma_sigma()
+
         self.pm.mp_synthetic_spectra()
         self.pm.mp_cosine_similarity()
 
@@ -201,8 +219,8 @@ class MainWindow(QtWidgets.QMainWindow):
         rescale = 1e3
 
         for detector in self.pm.detectors:
-            self.sc.axes.plot(detector.theta[x,0],detector.data[x][0] * rescale, lw=0.66, color='gray')
-            self.sc.axes.plot(detector.theta[x,0],detector.z[x][0] * rescale ,lw=0.66, color='steelblue')
+            self.sc.axes.plot(detector.theta[0,0],detector.data[0][0] * rescale, lw=0.66, color='gray')
+            self.sc.axes.plot(detector.theta[0,0],detector.z[0][0] * rescale ,lw=0.66, color='steelblue')
 
             self.sc.axes.vlines(detector.mu,0,detector.intensity * rescale,'k',ls='-',lw=1.5)
 
@@ -216,13 +234,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.sc.axes.draw(self.sc.fig.canvas.renderer)
 
-        self.tableWidget_opt_left.setItem(0,0,QTableWidgetItem("%.2f"%self.pm.detectors[0].a[x]))
-        self.tableWidget_opt_left.setItem(0,1,QTableWidgetItem("%.2f"%self.pm.detectors[0].s[x]))
-        self.tableWidget_opt_left.setItem(0,2,QTableWidgetItem("%.2f"%self.pm.detectors[0].beta[x]))
+        self.tableWidget_opt_left.setItem(0,0,QTableWidgetItem("%.2f"%self.pm.detectors[0].a[0]))
+        self.tableWidget_opt_left.setItem(0,1,QTableWidgetItem("%.2f"%self.pm.detectors[0].s[0]))
+        self.tableWidget_opt_left.setItem(0,2,QTableWidgetItem("%.2f"%self.pm.detectors[0].beta[0]))
 
-        self.tableWidget_theta_left.setItem(0,0,QTableWidgetItem("%.2f"%self.pm.detectors[0].min_theta[x]))
-        self.tableWidget_theta_left.setItem(0,1,QTableWidgetItem("%.2f"%self.pm.detectors[0].max_theta[x]))
-        self.tableWidget_theta_left.setItem(0,2,QTableWidgetItem("%.2f"%(self.pm.detectors[0].max_theta[x] - self.pm.detectors[0].min_theta[x])))
+        self.tableWidget_theta_left.setItem(0,0,QTableWidgetItem("%.2f"%self.pm.detectors[0].min_theta[0]))
+        self.tableWidget_theta_left.setItem(0,1,QTableWidgetItem("%.2f"%self.pm.detectors[0].max_theta[0]))
+        self.tableWidget_theta_left.setItem(0,2,QTableWidgetItem("%.2f"%(self.pm.detectors[0].max_theta[0] - self.pm.detectors[0].min_theta[0])))
 
         self.tableWidget_left.setRowCount(self.pm.detectors[0].n)
 
@@ -235,8 +253,8 @@ class MainWindow(QtWidgets.QMainWindow):
         for i in range(self.pm.detectors[0].n):
             self.tableWidget_left.setItem(i,0,QTableWidgetItem("%.2f"%self.pm.detectors[0].mu[i]))
             self.tableWidget_left.setItem(i,1,QTableWidgetItem("%.2f"%(self.pm.detectors[0].intensity[i] * 1e3)))
-            self.tableWidget_left.setItem(i,2,QTableWidgetItem("%.2f"%sqrt(self.pm.detectors[0].sigma2.reshape(-1,self.pm.detectors[0].n)[x][i])))
-            self.tableWidget_left.setItem(i,3,QTableWidgetItem("%.2f"%(2.355 * sqrt(self.pm.detectors[0].sigma2.reshape(-1,self.pm.detectors[0].n)[x][i]))))
+            self.tableWidget_left.setItem(i,2,QTableWidgetItem("%.2f"%sqrt(self.pm.detectors[0].sigma2.reshape(-1,self.pm.detectors[0].n)[0][i])))
+            self.tableWidget_left.setItem(i,3,QTableWidgetItem("%.2f"%(2.355 * sqrt(self.pm.detectors[0].sigma2.reshape(-1,self.pm.detectors[0].n)[0][i]))))
 
 app = QtWidgets.QApplication(sys.argv)
 w = MainWindow()
