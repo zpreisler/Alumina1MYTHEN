@@ -11,11 +11,12 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationTool
 from matplotlib.figure import Figure
 
 from XRDutils import ContainerXRD, PhaseMap, opt_from_theta, PhaseList
-from numpy import newaxis, ones, arange, asarray, sqrt, linspace, tan, pi
+from numpy import newaxis, ones, arange, asarray, sqrt, linspace, tan, pi, loadtxt, savetxt
 
 import yaml
 
-from os.path import join, dirname, splitext
+from os.path import join, dirname, splitext, basename
+from os import makedirs
 
 def set_opt(n, m, init_opt):
     nn = n + 3
@@ -49,7 +50,7 @@ def mesh_opt():
 
     return asarray(opt)
 
-def invers_fce_calibration(theta,a,s,beta):
+def inverse_fce_calibration(theta,a,s,beta):
     return s*tan((theta-beta)*pi/180) - a
 
 def save_calibrated(fname,x,y):
@@ -78,10 +79,15 @@ class MainWindow(QtWidgets.QMainWindow):
         saveAction.setStatusTip('Save calibration')
         saveAction.triggered.connect(self.saveCall)
 
+        applyCalibrationAction = QAction(QIcon('open.png'), '&Apply calibration', self)
+        applyCalibrationAction.setStatusTip('Apply calibration to one or more files')
+        applyCalibrationAction.triggered.connect(self.applyCalibrationCall)
+
         menuBar = self.menuBar()
         fileMenu = menuBar.addMenu('&File')
         fileMenu.addAction(openAction)
         fileMenu.addAction(saveAction)
+        fileMenu.addAction(applyCalibrationAction)
 
         self.file_label = QLabel()
         self.d1_label = QLabel()
@@ -192,7 +198,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             with open(join(dirname(_name), 'calibration.ini'), 'w') as file:
                 for i in range(self.pm.detectors[0].n):
-                    ch = invers_fce_calibration(
+                    ch = inverse_fce_calibration(
                         self.pm.detectors[0].mu[i],
                         self.pm.detectors[0].opt[0],
                         self.pm.detectors[0].opt[1],
@@ -204,6 +210,26 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.pm.detectors[0].theta[0],
                 self.container.data.data[0,0]
             )
+    
+    def applyCalibrationCall(self):
+        """
+        Apply calibration to one or more file
+        """
+        if not hasattr(self, "filename"):
+            return
+        elif not self.filename:
+            return
+        self.filelist = QFileDialog.getOpenFileNames(self, 'Select one or more files to open','',"Data File (*.dat)")[0]
+        if self.filelist:
+            path = dirname(self.filelist[0])
+            path = join(path,"calibrated")
+            makedirs(path, exist_ok=True)
+            
+            for _file in self.filelist:
+                bn,_ext = splitext(basename(_file))
+                data = loadtxt(_file)
+                data[:,0] = self.pm.detectors[0].theta[0]
+                savetxt(join(path,f"{bn}_calibrated{_ext}"), data, fmt=["%5.2f", "%d"])
 
     def openCall(self):
         """
@@ -347,7 +373,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for i in range(self.pm.detectors[0].n):
             self.tableWidget_left.setItem(i,0,QTableWidgetItem(
-                "%.2f"%invers_fce_calibration(
+                "%.2f"%inverse_fce_calibration(
                     self.pm.detectors[0].mu[i],
                     self.pm.detectors[0].opt[0],
                     self.pm.detectors[0].opt[1],
