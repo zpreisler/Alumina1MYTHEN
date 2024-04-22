@@ -18,6 +18,8 @@ import yaml
 from os.path import join, dirname, splitext, basename
 from os import makedirs
 
+__version__ = "0.0.1"
+
 def set_opt(n, m, init_opt):
     nn = n + 3
     opt = ones(nn * m,dtype='float32')
@@ -236,6 +238,8 @@ class MainWindow(QtWidgets.QMainWindow):
         Open spectrum
         """
         self.filename = QFileDialog.getOpenFileName(self, 'Open file','',"Data File (*.dat)")[0]
+        if not self.filename: return
+        
         print(self.filename)
 
         self.file_label.setText(self.filename)
