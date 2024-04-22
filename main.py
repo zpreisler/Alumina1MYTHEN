@@ -11,7 +11,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationTool
 from matplotlib.figure import Figure
 
 from XRDutils import ContainerXRD, PhaseMap, opt_from_theta, PhaseList
-from numpy import newaxis, ones, arange, asarray, sqrt, linspace
+from numpy import newaxis, ones, arange, asarray, sqrt, linspace, tan, pi
 
 import yaml
 
@@ -46,6 +46,14 @@ def mesh_opt():
                 opt += [opt_from_theta(t0,tm,b)]
 
     return asarray(opt)
+
+def invers_fce_calibration(theta,a,s,beta):
+    return s*tan((theta-beta)*pi/180) - a
+
+def save_calibrated(fname,x,y):
+    with open(fname, 'w') as f:
+        for xx,yy in zip(x,y):
+            f.write(f"{xx:6.2f} {int(yy)}\n")
 
 class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=300):
@@ -308,21 +316,29 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.tableWidget_left.setRowCount(self.pm.detectors[0].n)
 
-        self.tableWidget_left.setColumnCount(4)
-        self.tableWidget_right.setColumnCount(4)
+        self.tableWidget_left.setColumnCount(5)
+        self.tableWidget_right.setColumnCount(5)
 
-        self.tableWidget_left.setHorizontalHeaderLabels(['theta','intensity','sigma','FWHM'])
-        self.tableWidget_right.setHorizontalHeaderLabels(['theta','intensity','sigma','FWHM'])
+        self.tableWidget_left.setHorizontalHeaderLabels(['channel','theta','intensity','sigma','FWHM'])
+        self.tableWidget_right.setHorizontalHeaderLabels(['channel','theta','intensity','sigma','FWHM'])
 
         def w(x):
-            _a = 5.0;
-            return (sqrt((_a * x)**2 + 1) / _a + x);
+            _a = 5.0
+            return (sqrt((_a * x)**2 + 1) / _a + x)
 
         for i in range(self.pm.detectors[0].n):
-            self.tableWidget_left.setItem(i,0,QTableWidgetItem("%.2f"%self.pm.detectors[0].mu[i]))
-            self.tableWidget_left.setItem(i,1,QTableWidgetItem("%.2f"%(self.pm.detectors[0].intensity[i] * 1e3)))
-            self.tableWidget_left.setItem(i,2,QTableWidgetItem("%.2f"%sqrt(self.pm.detectors[0].sigma2.reshape(-1,self.pm.detectors[0].n)[0][i])))
-            self.tableWidget_left.setItem(i,3,QTableWidgetItem("%.2f"%(2.355 * sqrt(self.pm.detectors[0].sigma2.reshape(-1,self.pm.detectors[0].n)[0][i]))))
+            self.tableWidget_left.setItem(i,0,QTableWidgetItem(
+                "%.2f"%invers_fce_calibration(
+                    self.pm.detectors[0].mu[i],
+                    self.pm.detectors[0].opt[0],
+                    self.pm.detectors[0].opt[1],
+                    self.pm.detectors[0].opt[2]
+                )
+            ))
+            self.tableWidget_left.setItem(i,1,QTableWidgetItem("%.2f"%self.pm.detectors[0].mu[i]))
+            self.tableWidget_left.setItem(i,2,QTableWidgetItem("%.2f"%(self.pm.detectors[0].intensity[i] * 1e3)))
+            self.tableWidget_left.setItem(i,3,QTableWidgetItem("%.2f"%sqrt(self.pm.detectors[0].sigma2.reshape(-1,self.pm.detectors[0].n)[0][i])))
+            self.tableWidget_left.setItem(i,4,QTableWidgetItem("%.2f"%(2.355 * sqrt(self.pm.detectors[0].sigma2.reshape(-1,self.pm.detectors[0].n)[0][i]))))
             #self.tableWidget_left.setItem(i,4,QTableWidgetItem("%.2f"%w(self.pm.detectors[0].opt.reshape(-1,self.pm.detectors[0].n+3)[0][i+3])))
             #self.tableWidget_left.setItem(i,4,QTableWidgetItem("%.2f"%(self.pm.detectors[0].gamma[i])))
         print((self.pm.detectors[0].opt.reshape(-1,self.pm.detectors[0].n+3)).shape)
