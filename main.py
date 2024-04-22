@@ -214,19 +214,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pm.detectors[0].opt = set_opt(self.pm.detectors[0].n,self.pm.detectors[0].n_pixels,opt.T)
         self.pm.detectors[0]._opt = set_opt_(self.pm.detectors[0].n,self.pm.detectors[0].n_pixels,opt.T)
 
-        print(self.pm.detectors[0].opt.shape)
-        print(self.pm.detectors[0].opt)
-        print(self.pm.detectors[0].opt.reshape(self.pm.detectors[0].n+3,-1))
-        print(self.pm.detectors[0].opt.reshape(self.pm.detectors[0].n+3,-1).shape)
+        #print(self.pm.detectors[0].opt.shape)
+        #print(self.pm.detectors[0].opt)
+        #print(self.pm.detectors[0].opt.reshape(self.pm.detectors[0].n+3,-1))
+        #print(self.pm.detectors[0].opt.reshape(self.pm.detectors[0].n+3,-1).shape)
 
         self.pm.mp_synthetic_spectra()
         self.pm.mp_cosine_similarity()
 
-        print(self.pm.cosine_similarity[0].max(),self.pm.cosine_similarity[0].argmax())
+
+        #print(self.pm.cosine_similarity[0].max(),self.pm.cosine_similarity[0].argmax())
         idx = self.pm.cosine_similarity[0].argmax()
 
-        print(self.pm.detectors[0].opt.shape)
-        print(idx)
+        #print(self.pm.detectors[0].opt.shape)
+        #print(idx)
 
         """
         Second pass
@@ -267,6 +268,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pm.mp_cosine_similarity()
 
         self.sc.axes.cla()
+
+        print('theta.shape:',self.pm.detectors[0].theta[0])
 
         rescale = 1e3
 
