@@ -15,6 +15,8 @@ from numpy import newaxis, ones, arange, asarray, sqrt, linspace, tan, pi
 
 import yaml
 
+from os.path import join, dirname, splitext
+
 def set_opt(n, m, init_opt):
     nn = n + 3
     opt = ones(nn * m,dtype='float32')
@@ -179,12 +181,29 @@ class MainWindow(QtWidgets.QMainWindow):
     def saveCall(self):
         if hasattr(self,'filename'):
             print(self.filename)
-            dict_file = [{'beta' : round(float(self.pm.beta[0][0]), 4)},
+            _name, _ext = splitext(self.filename)
+            dict_file = [{'beta' : round(float(self.pm.detectors[0].opt[2]), 4)},
                          {'calibration' : 
                              {'theta_min' : round(float(self.pm.min_theta[0][0]), 4), 'theta_max' : round(float(self.pm.max_theta[0][0]), 4)}}] 
 
-            with open(self.filename[:self.filename.rfind('/') + 1] + 'calibration.yaml', 'w') as file:
+            #with open(self.filename[:self.filename.rfind('/') + 1] + 'calibration.yaml', 'w') as file:
+            with open(join(dirname(_name),'calibration.yaml'), 'w') as file:
                 calibration = yaml.dump(dict_file, file)
+
+            with open(join(dirname(_name), 'calibration.ini'), 'w') as file:
+                for i in range(self.pm.detectors[0].n):
+                    ch = invers_fce_calibration(
+                        self.pm.detectors[0].mu[i],
+                        self.pm.detectors[0].opt[0],
+                        self.pm.detectors[0].opt[1],
+                        self.pm.detectors[0].opt[2]
+                    )
+
+            save_calibrated(
+                f"{_name}_calibrated{_ext}",
+                self.pm.detectors[0].theta[0],
+                self.container.data.data[0,0]
+            )
 
     def openCall(self):
         """
