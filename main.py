@@ -393,6 +393,7 @@ class MainWindow(QtWidgets.QMainWindow):
         print((self.pm.detectors[0].opt.reshape(-1,self.pm.detectors[0].n+3)).shape)
         print(self.pm.detectors[0].opt.reshape(-1,self.pm.detectors[0].n+3))
 
-app = QtWidgets.QApplication(sys.argv)
-w = MainWindow()
-app.exec_()
+if __name__ == '__main__':
+    app = QtWidgets.QApplication(sys.argv)
+    w = MainWindow()
+    app.exec_()
