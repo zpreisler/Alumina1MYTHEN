@@ -18,6 +18,8 @@ import yaml
 from os.path import join, dirname, splitext, basename
 from os import makedirs
 
+from glob import glob
+
 __version__ = "0.0.1"
 
 def set_opt(n, m, init_opt):
@@ -186,6 +188,24 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.show()
 
+    def handleChooseDirectories(self):
+        dialog = QtWidgets.QFileDialog(self)
+        dialog.setWindowTitle('Choose Directories')
+        dialog.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
+        dialog.setFileMode(QtWidgets.QFileDialog.DirectoryOnly)
+        for view in dialog.findChildren(
+            (QtWidgets.QListView, QtWidgets.QTreeView)):
+            if isinstance(view.model(), QtWidgets.QFileSystemModel):
+                view.setSelectionMode(
+                    QtWidgets.QAbstractItemView.ExtendedSelection)
+        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+            file_list = dialog.selectedFiles()
+            print('debug:')
+            print(file_list)
+            return file_list
+            
+        
+
     def saveCall(self):
         if hasattr(self,'filename'):
             print(self.filename)
@@ -221,17 +241,27 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         elif not self.filename:
             return
-        self.filelist = QFileDialog.getOpenFileNames(self, 'Select one or more files to open','',"Data File (*.dat)")[0]
-        if self.filelist:
-            path = dirname(self.filelist[0])
-            path = join(path,"calibrated")
+        
+        # _directory = QFileDialog.getExistingDirectory(
+        #     parent=self,
+        #     caption='Select one or more directories',
+        #     directory = ''
+        # )
+        dirlist = self.handleChooseDirectories()
+        if dirlist is None: return
+        for _dir in dirlist:
+            filelist = glob(join(_dir, '*.dat'))
+            if filelist is None: continue
+            path = join(_dir,"calibrated")
             makedirs(path, exist_ok=True)
             
-            for _file in self.filelist:
+            for _file in filelist:
                 bn,_ext = splitext(basename(_file))
                 data = loadtxt(_file)
                 data[:,0] = self.pm.detectors[0].theta[0]
-                savetxt(join(path,f"{bn}_calibrated{_ext}"), data, fmt=["%5.2f", "%d"])
+                file_path = join(path,f"{bn}_calibrated{_ext}")
+                savetxt(file_path, data, fmt=["%5.2f", "%d"])
+                print(f'saving {file_path}')
 
     def openCall(self):
         """
