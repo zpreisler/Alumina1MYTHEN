@@ -256,15 +256,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.container.remove_background()
 
-        alumina = PhaseList([self.container.database['Aluminium oxide'][0]])
-        #alumina = PhaseList([self.container.database['SRM1976a'][0]])
+        #alumina = PhaseList([self.container.database['Aluminium oxide'][0]])
+        alumina = PhaseList([self.container.database['SRM1976a'][0]])
 
         opt = mesh_opt()
+
+        print('opt.shape:',opt.shape)
 
         self.container.data.data = self.container.data.data.repeat(len(opt),axis=0)
         self.container.data.background = self.container.data.background.repeat(len(opt),axis=0)
         self.container.data.no_background = self.container.data.no_background.repeat(len(opt),axis=0)
         self.container.data.normalized = self.container.data.normalized.repeat(len(opt),axis=0)
+
+        print(self.container.data.background.shape)
 
         self.pm = PhaseMap(self.container,alumina)
 
@@ -283,8 +287,8 @@ class MainWindow(QtWidgets.QMainWindow):
         #print(self.pm.cosine_similarity[0].max(),self.pm.cosine_similarity[0].argmax())
         idx = self.pm.cosine_similarity[0].argmax()
 
-        #print(self.pm.detectors[0].opt.shape)
-        #print(idx)
+        print('IDX',idx)
+        print(opt[idx])
 
         """
         Second pass
@@ -295,12 +299,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         print('opt:',opt)
 
+        alumina = PhaseList([self.container.database['SRM1976a'][0]])
+
         self.container = ContainerXRD('config.yaml')
 
         self.container.data.data = self.container.data.__read_single_dat__(self.filename)[newaxis,newaxis,:]
         self.container.data.n_channels = [1280]
         self.container.data.opt = [[0,-2000,43]]
         self.container.opt = self.container.data.opt
+
+        #alumina = PhaseList([self.container.database['Aluminium oxide'][0]])
 
         self.container.remove_background()
 
